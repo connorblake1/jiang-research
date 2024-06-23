@@ -1,2 +1,7 @@
 6/19
   setting up repo and jax GPU
+6/22
+  finishing up small-big-small and making it all converge, send stuff to Gideon/Jerry
+  Bertsekas did chapter 1 of dynamic programming
+6/23
+  learning Jax autodiff and working on Ch1 of Class Mech Structure Interpretation
