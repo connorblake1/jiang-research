@@ -5,3 +5,14 @@
   Bertsekas did chapter 1 of dynamic programming
 6/23
   learning Jax autodiff and working on Ch1 of Class Mech Structure Interpretation
+6/24
+  Questions for meeting:
+    1. what do second quantization states actually look like? ie in x-basis
+    2. how to implement more stable x-basis stuff
+    3a. what is the full set of physically realizable operations ie is it just controlled displacement?
+    3b. are there specific kinds of solid state hardware this is intended to run on? ie types of transmons etc?
+    4. are the graphs I made physically meaningful in the sense that continuous expectation values
+       would project onto a new basis and create Zeno type states - stochastic noise obviously important here
+       and how should I simulate it - does this have bearing on the optimal gate sets?
+    5. is the goal to just find better overall gates? to prove some kind of general Law-Eberly type control? It
+       doesn't seem like you can just "Trotterize better"
