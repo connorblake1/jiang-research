@@ -1,0 +1,6 @@
+{
+  "ruff.lint.extendSelect": [
+    "extend-include = [\"*.ipynb\"]"
+  ],
+  "notebook.defaultFormatter": "charliermarsh.ruff"
+}
