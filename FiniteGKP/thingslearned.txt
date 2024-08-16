@@ -1,0 +1,413 @@
+Learned
+
+
+6/3
+	conda is great for making things work correctly with wacko dependences
+	in order to install things with pip AND anaconda need to use something like 
+		./opt/anaconda3/bin/pip3 install ______
+	
+6/4
+	
+
+TODO - LVS layout vs schematic
+	klayout docs
+	component
+		has blueprint etc
+	LVS - usually done in Cadence
+		as build up, always check "LVS clean"
+		avoid overlaps, shorts, connected to wrong place
+Questions
+	icefish
+		why so many staple things - literally just grounding
+		inductively flux coupled? Where inductors? - capacitively coupled
+		how fix topology issue when more qubits? - crossovers are just the staples
+		2 flux loops - one for DC with heavy low filter the other for faster control - leads to more stable operations
+	component instance: why does charge antenna not have one?
+	"extractors"??
+
+Goal:
+	put in arbitrarily complex files and check if the net lists match
+klayout: LVS writeup to describe it
+
+6/5
+	question:
+		is there a list of DRC checks somewhere I can look into? Ie min spacing etc	
+	klayout DRC notes
+		all layers are objects which contain polygons referenceble by <name>.data.shapes
+		layers + selectors .space, .width, .without_area, .inside .interacting etc define the rules
+			eg diff/contact/metal are layers
+			eg not too overlapping, have the right margins etc
+		all variables in ruby are objects
+	klayout Ringo example from si4all
+		silicon inverter 
+		
+	.lyp files are for formatting klayout GUI with special colors
+	pipeline:
+		python parametric design	-gdsfactor+cell_lib calls in lvs_demo main->	.gds file
+		.gds		-lvs_demo netlist_hierarchical-> 	.cir netlist (error currently in duplication)
+		.gds		-extractors in lvsdb script -> .cir netlist
+				-automorphism checker in aq_pdk/pdk.py>run_klayout_drc>klayout terminal call->
+		
+
+	structural thoughts
+		will need to loop over the number of type of devices in order to generate the write layers which get connected
+		connect all active layers to each other (loop through active layers)?
+			how do I find the list of layers used within the GDS file
+
+6/7
+	DeviceClassResistor is written in C++ so you HAVE to write from scratch in Ruby to emulate it, there is nothing i was missing. There is c++ scripting so I am doing it in the easiest way
+	anything with RBA:: is a binding from C++
+
+Done
+	added new layers
+	figuring out exactly how extract_devices works
+		it works on the standard device for a type when hashes, NOT each device individually
+	trying to add text
+		in extractors, discovered this is really not possible because can't tag individually
+
+6/10
+	Region() --> Poly use .merged and then .each do |poly|
+	Poly --> Region use constructor RBA::Region::new(poly)
+	
+	@name is NOT the same as self.name
+		@name has custom function bindings whenever called
+
+	Done
+		fixed duplication glitch when calling inductor()
+		finished value extraction from labels
+
+6/11
+	Done
+		redid value extraction but this time from a dummy terminal, now works for multiple subtypes of inductors and simultaneously
+		trying to setup combination
+			it only works when the top level sub circuit is also properly purged so there aren't extra terminals (ie the ones that get removed can't be in the header when removing or else nothing gets removed)
+
+	GND is a special net
+
+Current features
+	ability to make complex custom devices
+	ability to add/extract tags via gdsfactory that contain device information eg inductance
+	ability to combine devices and simplify net lists
+Future features
+
+6/12
+done
+	setting up and troubleshooting JJ_MANHATTAN class and extractors
+6/13	
+Done
+	Manhattan extraction + Manhattan chaining
+	fixing spice extraction for strange Manhattan stuff
+Questions
+	are Dolan and Manhattan always on different layer yes
+	what are all the EBeam layers
+	when should add all the new marker layers for each device to aq_pdk, how many total
+	where to find a larger workflow
+
+Dolan
+	height * gap * some factor = junction area, A * Jc = Ic
+
+6/17
+	changed: pdk.py
+
+Finished 53 unit test
+Goal:
+	pad->microwave resonator->flux antenna->ground
+
+
+.subckt Chip pin1
+XI pin1 0 (ground)
+
+6/18
+To add new device
+	write class in <class>.rb
+	add names to top ~50 lines of spice.rb
+	
+
+	update to gdsfactory/get_netlist?
+How many connections in a qb junction? What want to count as capacitance/inductance?
+
+DEVICES TO TAG/QUESTIONS
+	fluxonium_loop_dolan?
+		don't capture mutual inductances
+		part connecting Dolans is just a net
+	straight?
+		what is cross section
+			allows paths to be extruded by having multiple layers like feed lines
+		what is cpw?
+			coplanar waveguide
+	charge antenna?
+		couple to qubit arm
+	should qubit be subcircuit?
+		qubit loop is own sub circuit
+		.subckt
+		loop
+		cap ref (terminals to couplers)
+		.ends
+	overall architecture
+		top level: pins out of chip + experiment
+			non bondpad experiments should be own sub circuit
+	what needs connection within qubit?
+		flux antenna
+		add schematic instance of qubit
+	when/where will the label assigning take place		
+	crossovers?
+
+CHANGES OUTSIDE MASKGOLDEYE:
+	aq_pdk/pdk.py
+
+	aq_design
+		components/chips.py
+
+
+comp.named_references["generate_chip_1_1"].ports_layer
+
+comp.references[0].ref_cell.named_references --> ComponentReferenceTypes
+	comp.references[0] (type )= ComponentReference (it's randomly wrapped in a list)
+	comp.references[0].ref_cell (type) = Component 
+	comp.references[0].ref_cell.references (type) = list
+	comp.references[0].ref_cell.ports_layer (type) = dict
+ports_layer
+
+From gdsfactory.component import recurse_structures
+big_dict = recurse_structures(comp)
+
+
+6/20
+Done:
+	broke topological match but not nestlist matching
+	talked with Sergey about setting up chip level
+	more head bashing with chip level
+	learned how the schematic are read and printed as subcircuits
+Priority
+0:
+	flux antenna -> pads bc most likely to break to get full chip
+1:	
+	junction areas match + are connected properly
+2:
+	rewrite capacitance to allow for flux antenna
+
+
+TODO
+	add schematic instances to mask_generation
+	qubit SchematicInstances for all devices
+		name differently based on num ports
+
+6/21
+	qubits have flux in by default, flux out only added when flux antenna created
+
+Judgement calls?
+	adding helpers to devices so that the reference names can be attached in the default locations without manual additions
+		ie automatic flux antenna label positioning
+
+Gritty Questions:
+LEARNED
+	x specifies subcircuit in spice
+DONE:
+	made generate reference schematic by modifying the whole tree of mask_generation.py
+	learned how to make reference schematics work in lvs_demo
+
+6/24
+Learned:
+	GDS factory labels are attached on the hierarchical layer during extraction on which they are initiated (ie labels within flux antenna ONLY appear on that cell in Klayout)
+Problem:
+	GND labels not being extracted during flux_dolan_v_cap --> bc they are not on native components
+
+
+6/25
+Learned:
+	you DO NOT have to merge conductor layer to capture the full flux antenna device and other complex shapes
+	do not remove pins ever - always seg faults - just disconnect terminals
+	always leave comments in place to uncomment as necExecuting (N_qubit=5, N_cavity=5)
+State Completed (N_qubit=5, N_cavity=5)
+        State differences: [1.8e-04 7.0e-05 5.4e-04 3.0e-05]
+        Times (qt0,qt1,dq0,dq1):                [6.145, 6.198, 23.658, 19.801]
+Executing (N_qubit=5, N_cavity=7)
+State Completed (N_qubit=5, N_cavity=7)
+        State differences: [6.e-05 3.e-05 7.e-05 6.e-05]
+        Times (qt0,qt1,dq0,dq1):                [14.678, 11.834, 26.767, 25.896]
+Executing (N_qubit=5, N_cavity=10)
+State Completed (N_qubit=5, N_cavity=10)
+        State differences: [0.00041 0.00021 0.00026 0.0002 ]
+        Times (qt0,qt1,dq0,dq1):                [43.707, 49.985, 37.159, 36.947]
+Executing (N_qubit=5, N_cavity=12)
+State Completed (N_qubit=5, N_cavity=12)
+        State differences: [1.e-05 0.e+00 4.e-05 1.e-05]
+        Times (qt0,qt1,dq0,dq1):                [48.738, 49.274, 44.221, 43.973]
+Executing (N_qubit=5, N_cavity=15)
+State Completed (N_qubit=5, N_cavity=15)
+        State differences: [1.e-05 0.e+00 1.e-05 1.e-05]
+        Times (qt0,qt1,dq0,dq1):                [81.515, 86.45, 54.432, 54.775]
+Executing (N_qubit=5, N_cavity=20)
+State Completed (N_qubit=5, N_cavity=20)
+        State differences: [1.e-05 1.e-05 1.e-05 1.e-05]
+        Times (qt0,qt1,dq0,dq1):                [196.365, 238.979, 72.48, 73.182]
+Executing (N_qubit=10, N_cavity=20)
+State Completed (N_qubit=10, N_cavity=20)
+        State differences: [0 0 0 0]
+        Times (qt0,qt1,dq0,dq1):                [0.0, 0.0, 83.176, 82.631]essary until all of LVS done
+	KLAYOUT WILL SEGFAULT AND SILENT CRASH INS SPICE SCRIPTS IF YOU MISNAME THIGNS FUCKKKKKKKK
+
+Connect airbridges seems to have no bearing on 
+i_m1 = i_m1 + i_m1_fill
+	causes hierarchy to break but seems to actually attach nets
+	not having it allows hierarchy but leaves strange GND net with no pins attached this is not floating,internal,or passive and I cannot figure out where it lives
+Connect C in inductors.rb breaks everything BUT it does seem to attach the shapes leading to the broken other devices - still not sure how that works
+
+I have decided to 1) connect C to C in inductors because it makes the most sense for extraction (ie the shapes have the right number of vertices) and 2) make i_m1 = i_m1 + i_m1_fill because they really should be the same thing
+	EDIT: just the i_m1 = i_m1 + i_m1_fill, not C+C because that still breaks
+
+Questions:
+	how many layers should have?
+DONE:
+	hierarchical LVS
+6/26
+
+Done:
+	new capacitors with dual markers
+	project for naryna with jj_manhattans
+	writing documentation for the insane quirks
+
+6/27
+	resolved many TODO and reformats
+	added proper ground pin
+	added interlayer capacitors
+
+Modifications to chip_level_lvs
+	commented out @cell on generate_chip_1() bc kills schematic_pins/instances
+	added lvs stuff at bottom
+	import sys, from aq_pdk.mitll_sqp_qub_int import PDK, from aq_pdk.lvs import SchematicInstance
+	adding connection dictionaries
+
+7/1
+Making new devices
+	within one component, the nets on the SchematicInstances must match the add_label names, will only exist within that hierarchy level
+
+Check?
+	order matters everywhere?
+
+
+
+Making a hierarchy:
+	adding a device at lowest level (all pins go out) (like flux antenna):
+		in device class: Schematic instance belongs to device, schematic pins have all, add labels, device tag
+		at level up where instanced: add new labels (names do not matter), attach schematic pins up
+
+
+Extracted:
+	what names all the internal (including purely) pins of the sub circuit: add_label's within the device class (purely internal labeling is optional if contacts exist)
+	what names all the internal->external pins of the sub circuit: attaching labels outside the sub circuit device class on top of internals
+		okay to leave off?: usually unless creates ambiguity
+	parameters: tag_device within the device class
+		okay to leave off?: not unless device has no parameter
+		
+Reference:
+	what names the internal->external pins of the sub circuit: schematic_pins (within device class)
+		okay to leave off?: no
+	what names the purely internal pins of the subcircuit?: SchematicInstance nets within device class
+	parameters: SchematicInstance(params=[<stuff>])
+		okay to leave off?: no
+
+7/2
+Done
+	added new crossed capacitors and basic unit tests
+	full qubit extracted
+Questions
+	placements on flux antenna, res antenna, resonators, meanders, jj Manhattan, tolerances etc just kind of guessed
+	values
+
+There is an EXTRACTION problem on the resonator side
+	DONE
+7/3
+	refactoring to write attach_lvs_pins etc
+7/5
+	morning: writing documentation files for LVS
+	afternoon: worked on logo, fixed LL vs. Chalmers
+
+Questions for Sergey
+	more test cases for whole-chip layout stuff to hammer out bugs like rotations
+	what philosophy on why ex squid_loops.py in mask_goldeye not design
+	how to do giant PR
+		and smaller AQ_PDK and AQ_DESIGN fixes
+	how to input device params/philsophy there
+	chip level vs mask level in big_chip_level
+	go over documentation with him
+	GND pin placement
+		you need to make it explicit bc otherwise you won't know if something gets crossed with ground by accident
+
+7/10
+DONE:
+	finished writing unit tests and key operations for DRC Klayout
+	sprint review presentation on hierarchical full qubit and starting DRC
+	working on lambda function capabilities and first actual testing
+
+7/15
+	wrote documentation page for DRC
+	found a bunch of actual errors in the Goldeye chip
+	redid inversion after trying to add in TETHER/XVR stuff
+Learned KLayout .sized feature introduces really insidious bugs
+	
+7/17
+	able to set up unit tests and export them to the redhat server and load them in - but cannot actually run DRC due to some Siemens licensing 
+	have a few more design rules to implement but they seem to be low value for what we get - ie they are making sure the crossovers/finger Dolan junctions are shaped which seems like a very weird way for the current setup to break - nothing about how they interact, just the shape	
+		is there a higher priority subject I should work on
+
+7/25
+jax/jit
+	jnp.diag does not work in jit with variable size
+
+7/29
+To explore
+	fast multipole method
+	python tools for computational electromagnetism - would have dia solvers
+		they are a pain in the ass to install
+	Low-rank numerical approximations for high-dimensional Lindblad equations
+	krylov subspace methods Jacobian-free Newton–Krylov methods: a survey of approaches and applications
+	making the tensor product method work in space systems
+
+
+8/2
+	jax questions
+		diffrax._custom_types why does RealScalarLike handle complex numbers?
+	
+
+8/6
+threadpoolctl library
+	lets you specify a context that limits the number of threads used within
+	must be imported after the multithreaded libs
+	ie
+		import numpy as np
+		from threadpoolctl import ThreadpoolController, threadpool_limits
+		controller = ThreadpoolController()
+		print(controller.info())
+ 			shows numpy has a blas api that will multithread
+	ie
+           	with threadpool_limits(limits=1, user_api="blas"):
+multiprocessing
+	Lock acts just like C mutex lock
+		from multiprocessing import Lock
+		mutex = Lock()
+		...
+		mutex.acquire() # holds until gets
+		sldkfjslkfj
+		mutex.release() # lets go of lock
+	Process acts like pthread
+	Manager manages read-write data
+		read-only data can be declared before processes initiated and is globally accesible
+	Pipes send bidirectional data
+	Pool generates multiple processes at once
+		
+	Array allows for shared ctype arrays (buffers) which can be numpyd, other shared memory is extremely slow bc pickling back and forth
+global interpreter lock
+	1. A thread must hold the GIL to call CPython C APIs.
+	2. Python code running in the interpreter, like x = f(1, 2), uses those APIs. Every == comparison, every integer addition, every list.append: it’s all calls into Python C APIs. Thus threads running Python code must hold on to the lock when running.
+	3. Other threads can’t acquire the GIL, and therefore can’t run, until the currently running thread releases it, which happens every 5ms automatically.
+	4. Long-running (“blocking”) extension code prevents the automatic switching.
+	5. Python extensions written in C (or other low-level languages) can however explicitly release the GIL, allowing one or more threads to run in parallel to the GIL-holding thread.
+questions
+	what is the ideal amount of numpy threads to run?
+		unclear - all have same perf
+	why does scipy not need multithreading limits in example?
+		both use blas so no need
+	
+	
+		
