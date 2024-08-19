@@ -1,0 +1,5 @@
+To make work:
+1. download folder and unzip
+2. put in /usr/local/include
+3. include header file as specified in this example
+4. run "g++ test.cpp -o a" then "./a"
