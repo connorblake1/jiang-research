@@ -1,0 +1,25 @@
+Start testing: Aug 21 22:32 CDT
+----------------------------------------------------------
+1/1 Testing: mpi_app.ctest
+1/1 Test: mpi_app.ctest
+Command: "/usr/bin/sh" "/home/cjblake/Documents/GitHub/jiang-research/cpp_testing/HPC/mpi_app.ctest"
+Directory: /home/cjblake/Documents/GitHub/jiang-research/cpp_testing/HPC/build
+"mpi_app.ctest" start time: Aug 21 22:32 CDT
+Output:
+----------------------------------------------------------
+first file is short
+### Maximum relative error in matching lines = 1.24e-05 at line 1 field 4
+first file is short
+1c1
+< Elapsed: 10.000162 secs 
+--- field 4
+> Processor Rank: 0Elapsed: 10.000218 
+<end of output>
+Test time =  34.58 sec
+----------------------------------------------------------
+Test Failed.
+"mpi_app.ctest" end time: Aug 21 22:32 CDT
+"mpi_app.ctest" time elapsed: 00:00:34
+----------------------------------------------------------
+
+End testing: Aug 21 22:32 CDT

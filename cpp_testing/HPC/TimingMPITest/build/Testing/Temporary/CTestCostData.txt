@@ -1,0 +1,3 @@
+mpi_app.ctest 0 0
+---
+mpi_app.ctest

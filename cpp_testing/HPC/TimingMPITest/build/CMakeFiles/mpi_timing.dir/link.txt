@@ -1,0 +1,1 @@
+/usr/bin/c++ -rdynamic CMakeFiles/mpi_timing.dir/mpi_timing.cpp.o -o mpi_timing  -Wl,-rpath,/usr/lib/x86_64-linux-gnu/openmpi/lib /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_cxx.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi.so 

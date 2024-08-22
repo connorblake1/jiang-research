@@ -1,0 +1,10 @@
+#!/bin/sh
+./timing > run0.out
+mpirun -n 1 ./mpi_timing > run1.out
+mpirun -n 2 ./mpi_timing > run2.out
+ndiff --relative-error 1.0e-4 run1.out run2.out
+test1=$?
+ndiff --relative-error 1.0e-4 run0.out run2.out
+test2=$?
+
+exit "$(($test1+$test2))"
