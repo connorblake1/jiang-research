@@ -1,0 +1,65 @@
+HPC Notes
+
+CH1
+Flynn's Taxonomy
+SIMD
+    ie like vectorization
+SISD
+    normal cpu
+MISD
+    redundant computation like on spacecrafts in high radiation envs
+MIMD
+    best with no conditionals - otherwise different data need to be executed on different branches otherwise like supervectorized
+
+CH2
+    always benchmark wrt to serial to catch inscrutible errors
+    test suites
+    mpic++ must be used to compile things with #include <mpi.h>
+    mpirun -n 4 executable
+        calls executable on 4 processors
+    
+
+CH3
+perf profiling / limits
+    speeds = speeds of operation
+    feeds = speed of loading in data for ops
+        most often limiting in modern systems
+        streaming behavior is the gold standard (at bandwidth limit)
+            contiguous memory accessed
+        latency = time to get the first piece of data
+speeds
+    add/multiply in 1 cycle per flop
+    division 3-5 cycles per flop
+    fused multiply add = 2 flops/cycle
+    vectorizing multiplies all by n
+    L1 cache is 1800 Gb/s (32 Kb)
+    L2 cache is 1000 GB/s (256 KB)
+    L3 cache is 600 GB/s (4-12 MB)
+    DRAM is 24 GB/s
+
+arithmetic intensity = flops per loaded word
+    normal = 1
+    anything below 1flop/word means the program is bandwidth-limited by cache/DRAM
+    high = 60 (dense matmul solve)
+    ie if 2d arraw accessing columns might Have to scan entire row to get single value and op which crashes intensity
+measuring arithmetic intensity
+    sudo modprobe msr (enables monitoring)
+    likwid-perfctr -C 0-87 MEM_DP ./executable
+
+
+
+CH4
+data oriente design
+    CPP classes cause callstacks --> cache misses
+    inline makes the compiler copy source from subroutine into line where executed
+    evertything should be in arrays rather than structures like classes
+    linked lists should be contiguous blocks of memory not causing to jump all over heap with pointers
+ie inner loop should be accessed last 
+    for i in imax
+        for j in jmax
+            A[i][j] stuff
+
+
+questions
+    learning CPP for HPC
+    why does ML not use CPP
