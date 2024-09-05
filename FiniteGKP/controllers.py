@@ -23,6 +23,29 @@ class SinusoidalControl(AbstractControl):
         for i in range(len(self.a)):
             out = out + self.a[i]*jnp.sin(self.omega[i]*t + self.phi[i])
         return out
+
+class FrequencyControl(AbstractControl):
+    omega: Array
+    def __call__(self, t:float) ->float:
+        out = 0
+        for i in range(len(self.omega)):
+            out = out + jnp.sin(self.omega[i]*t)
+        return out
+
+
+def gaussian(mu, sig, t):
+    sig = sig **2 
+    return 1./(sig*jnp.sqrt(2*jnp.pi))*jnp.exp(-(t-mu)**2/(2*sig))
+
+class GaussianControl(AbstractControl):
+    amp: Array
+    mean: Array
+    sigma: Array
+    def __call__(self, t: float) -> float:
+        out = 0
+        for i in range(self.amp.shape[0]):
+            out += self.amp[i]*gaussian(self.mean[i],self.sigma[i],t)
+        return out
     
 class ConstantControl(AbstractControl):
     k: float

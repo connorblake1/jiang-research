@@ -52,20 +52,20 @@ class OptimalController(eqx.Module):
     dt_start: float
     dt_save: float
     y_final: Callable[Array, float]
-    y_statewise: Callable[Array, float]
-    u_statewise: Callable[Array, float]
+    y_statewise: Callable[[Array,float], float]
+    u_statewise: Callable[[Array,float], float]
     times: Array
 
     def __init__(self,
-            system,
-            controls,
-            y0,
-            duration,
-            dt_start,
-            dt_save,
-            y_final,
-            y_statewise,
-            u_statewise
+            system: AbstractSystem,
+            controls: ControlVector,
+            y0: Array,
+            duration: float,
+            y_final: Callable[Array, float],
+            y_statewise:  Callable[[Array,float], float] = lambda y: 0,
+            u_statewise:  Callable[[Array,float], float] = lambda y: 0,
+            dt_start: float = .01,
+            dt_save: float = .1,
         ):
         self.system = system
         self.controls = controls
@@ -95,7 +95,7 @@ class OptimalController(eqx.Module):
         # TODO jaxify
         L = 0
         for i in range(yt.shape[0]):
-            L += self.y_statewise(yt[i])
+            L += self.y_statewise(yt[i],self.times[i])
             L += 0 # control penalty TODO
         L += self.y_final(yt[-1])
         return L
@@ -103,7 +103,7 @@ class OptimalController(eqx.Module):
     def optimize(
             self,
             N_steps: int,
-            learning_rate: float = .001,
+            learning_rate: float = .1,
             verbosity: int = 0) -> None:
         optim = optax.adam(learning_rate, nesterov=True)
         opt_state = optim.init(self.controls)
