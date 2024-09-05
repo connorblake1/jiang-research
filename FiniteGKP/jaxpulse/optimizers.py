@@ -8,7 +8,7 @@ from abc import abstractmethod
 import jax.numpy as jnp
 import dynamiqs as dq
 from .controllers import ControlVector
-from .utils import commutator, dissipator, rhodot_H
+from .utils import dissipator, rhodot_H
 
 class AbstractSystem(eqx.Module):
     H_0: Array
@@ -82,7 +82,7 @@ class OpenQuantumSystem(AbstractSystem):
     
 class OptimalController(eqx.Module):
     system: AbstractSystem
-    controls: ControlVector
+    controls: ControlVector | tuple[ControlVector]
     y0: Array
     duration: float
     dt_start: float
@@ -94,19 +94,28 @@ class OptimalController(eqx.Module):
 
     def __init__(self,
             system: AbstractSystem,
-            controls: ControlVector,
+            controls: ControlVector | tuple[ControlVector],
             y0: Array,
             duration: float,
             y_final: Callable[Array, float],
-            y_statewise:  Callable[[Array,float], float] = lambda y: 0,
-            u_statewise:  Callable[[Array,float], float] = lambda y: 0,
+            y_statewise:  Callable[[Array,float], float] = lambda y, t: 0,
+            u_statewise:  Callable[[Array,float], float] = lambda y, t: 0,
             dt_start: float = .01,
             dt_save: float = .1,
         ):
         self.system = system
+        if isinstance(self.system, ClosedQuantumSystem):
+            if isinstance(controls, ControlVector):
+                controls = (controls,None)
+        else:
+            if not isinstance(controls, tuple):
+                raise TypeError("For an open quantum system, controls must be a tuple of control vectors.")
         self.controls = controls
-        if len(list(self.controls)) != len(self.system.H_M):
+        if len(list(self.controls[0])) != len(self.system.H_M):
             raise ValueError("Incorrect number of control Hamiltonians or controls.")
+        if isinstance(self.system, OpenQuantumSystem):
+            if len(list(self.controls[1])) != len(self.system.C_K):
+                raise ValueError("Incorrect number of dissipator controls or controllable dissipators.")
         self.y0 = y0
         self.duration = duration
         self.dt_save = dt_save
@@ -117,8 +126,6 @@ class OptimalController(eqx.Module):
         self.times = jnp.arange(0.0,self.duration, self.dt_save)
 
     def run(self, controls: ControlVector | tuple[ControlVector]):        
-        if isinstance(self.system, ClosedQuantumSystem):
-            controls = (controls,)    
         return self.system.run_simulation(
             ts=self.times,
             dt=self.dt_start,
@@ -185,8 +192,11 @@ class OptimalController(eqx.Module):
         for i, name in enumerate(exp_names):
             ax.plot(self.times,jnp.real(exps[i]),label=name)
         if plot_controls:
-            for i, u_m in enumerate(self.controls):
+            for i, u_m in enumerate(self.controls[0]):
                 u_m.graph(self.times,ax,fr"$u_{i+1}(t)$")
+            if self.controls[1] is not None:
+                for i, v_i in enumerate(self.controls[1]):
+                    v_i.graph(self.times,ax,fr"$v_{i+1}(t)$")
         
 
 
