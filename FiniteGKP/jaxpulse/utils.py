@@ -18,6 +18,7 @@ def commutator(A: Array, B: Array):
 def anticommutator(A: Array, B: Array):
     return A@B + B@A
 
+
 def rhodot_H(H: Array, rho: Array):
     return -1j*commutator(H, rho)
 
