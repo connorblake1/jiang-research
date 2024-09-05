@@ -3,6 +3,8 @@ from jaxtyping import Array
 from abc import abstractmethod
 import jax.numpy as jnp
 
+# __all__ = ["AbstractControl", "SinusoidalControl","FrequencyControl","GaussianControl", "ConstantControl", "ControlVector"]
+
 class AbstractControl(eqx.Module):
 
     @abstractmethod
@@ -32,9 +34,11 @@ class FrequencyControl(AbstractControl):
             out = out + jnp.sin(self.omega[i]*t)
         return out
 
+def soft_abs(x, min: float = .1):
+    return jnp.sqrt(x**2 + min)
 
 def gaussian(mu, sig, t):
-    sig = sig **2 
+    sig = soft_abs(sig)
     return 1./(sig*jnp.sqrt(2*jnp.pi))*jnp.exp(-(t-mu)**2/(2*sig))
 
 class GaussianControl(AbstractControl):

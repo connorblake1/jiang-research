@@ -1,0 +1,21 @@
+[project]
+name = "jaxpulse"
+version = "0.0.1"
+requires-python = ">=3.9"
+description = "JAX-based Quantum Optimal Control Generator"
+dependencies = [
+    "qutip>=4.7.5,<5.0",
+    "scipy",
+    "numpy",
+    "matplotlib",
+    "tqdm",
+    "jax",
+    "jaxlib",
+    "jaxtyping",
+    "diffrax>=0.5.1",  # for complex support (0.5.0) and progress meter (0.5.1)
+    "equinox",
+    "imageio",
+    "cmasher>=1.8.0",  # avoid matplotlib colormaps deprecation warning
+    "ipython",
+    "tqdm",
+]
