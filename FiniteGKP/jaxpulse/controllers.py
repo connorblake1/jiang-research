@@ -4,6 +4,8 @@ from abc import abstractmethod
 import jax.numpy as jnp
 from .utils import gaussian
 
+__all__ = ["SinusoidalControl","FrequencyControl","GaussianControl","GaussianPulseTrain","ConstantControl","ControlVector"]
+
 class AbstractControl(eqx.Module):
 
     @abstractmethod
@@ -42,6 +44,11 @@ class GaussianControl(AbstractControl):
         for i in range(self.amp.shape[0]):
             out += self.amp[i]*gaussian(self.mean[i],self.sigma[i],t)
         return out
+    
+class GaussianPulseTrain(GaussianControl):
+    period: float
+    def __call__(self, t: float) -> float:
+        return super().__call__(t % self.period)
     
 class ConstantControl(AbstractControl):
     k: float

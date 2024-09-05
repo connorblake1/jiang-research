@@ -2,7 +2,7 @@ from jaxtyping import Array
 import dynamiqs as dq
 import jax.numpy as jnp
 
-def soft_abs(x, min: float = .1):
+def soft_abs(x, min: float = .001):
     return jnp.sqrt(x**2 + min)
 
 def gaussian(mu, sig, t):
