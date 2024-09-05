@@ -45,10 +45,17 @@ class GaussianControl(AbstractControl):
             out += self.amp[i]*gaussian(self.mean[i],self.sigma[i],t)
         return out
     
-class GaussianPulseTrain(GaussianControl):
-    period: float
+class GaussianPulseTrain(AbstractControl):
+    amp: Array
+    mean: Array
+    sigma: Array
+    period: Array
     def __call__(self, t: float) -> float:
-        return super().__call__(t % self.period)
+        t = jnp.remainder(t, self.period)
+        out = 0
+        for i in range(self.amp.shape[0]):
+            out += self.amp[i]*gaussian(self.mean[i],self.sigma[i],t)
+        return out
     
 class ConstantControl(AbstractControl):
     k: float
@@ -61,9 +68,12 @@ class ConstantControl(AbstractControl):
 class ControlVector(eqx.Module):
     us: list[AbstractControl]
 
-    def __call__(self, t: float):
-        return jnp.array([u(t) for u in self.us])
+    def __call__(self, t: float) -> Array:
+        return jnp.vstack((tuple([u(t) for u in self.us])))
     
     def __iter__(self):
         return iter(self.us)
+    
+    def __getitem__(self, index: int):
+        return self.us[index]
 

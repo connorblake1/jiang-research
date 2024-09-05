@@ -5,6 +5,9 @@ import jax.numpy as jnp
 def soft_abs(x, min: float = .001):
     return jnp.sqrt(x**2 + min)
 
+def heaviside(t: float):
+    return 1.0*(t > 0)
+
 def gaussian(mu, sig, t):
     sig = soft_abs(sig)
     return 1./(sig*jnp.sqrt(2*jnp.pi))*jnp.exp(-(t-mu)**2/(2*sig))

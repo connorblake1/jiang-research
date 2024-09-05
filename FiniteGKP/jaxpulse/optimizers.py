@@ -19,29 +19,9 @@ class AbstractSystem(eqx.Module):
     @abstractmethod
     def vector_field_term(self, t: float, y, args: dict, controls: ControlVector):
         pass
-    @abstractmethod
-    def run_simulation(
-            self,
-            ts: Array,
-            dt: float,
-            y0: Array,
-            u: tuple[ControlVector]
-        ):
-        pass
-        
-
-class ClosedQuantumSystem(AbstractSystem):
-
-    def vector_field_term(self, t: float, y: Array, args: dict, controls: ControlVector):
-        field = self.H_0
-        for u_m, H_m in zip(controls, self.H_M):
-            field = field + H_m*u_m(t)
-        return (-1j*field) @ y
-
-    def run_simulation(self, ts: Array, dt: float, y0: Array, u: tuple[ControlVector]):
-        u_M = u[0]
+    def run_simulation(self, ts: Array, dt: float, y0: Array, u: ControlVector):
         results = df.diffeqsolve(
-            terms=df.ODETerm(partial(self.vector_field_term, controls=u_M)),
+            terms=df.ODETerm(partial(self.vector_field_term, controls=u)),
             solver=df.Dopri5(),
             t0=ts[0],
             t1=ts[-1],
@@ -51,12 +31,24 @@ class ClosedQuantumSystem(AbstractSystem):
             max_steps=1_000_000
         )
         return results.ys
+        
+
+class ClosedQuantumSystem(AbstractSystem):
+
+    def vector_field_term(self, t: float, y: Array, args: dict, controls: ControlVector):
+        field = self.H_0
+        for u_m, H_m in zip(controls, self.H_M):
+            field = field + H_m*u_m(t)
+        return (-1j*field) @ y
+    
 
 class OpenQuantumSystem(AbstractSystem):
     U_K: list[Array]
     C_K: list[Array]
 
-    def vector_field_term(self, t: float, y: Array, args: dict, controls_H: ControlVector, controls_L: ControlVector):
+    def vector_field_term(self, t: float, y: Array, args: dict, controls: ControlVector):
+        controls_H = controls[:len(self.H_M)]
+        controls_L = controls[len(self.H_M):]
         # Hamiltonians
         H_tot = self.H_0 + sum([H_m*u_m(t) for u_m, H_m in zip(controls_H, self.H_M)])
         field = rhodot_H(H_tot, y)
@@ -67,56 +59,39 @@ class OpenQuantumSystem(AbstractSystem):
             field = field = v_k(t)*dissipator(C_k,y)
         return field
     
-    def run_simulation(self, ts: Array, dt: float, y0: Array, u: tuple[ControlVector]):
-        u_M = u[0]
-        v_K = u[1]
-        results = df.diffeqsolve(
-            terms=df.ODETerm(partial(self.vector_field_term, controls_H = u_M, controls_L = v_K)),
-            solver=df.Dopri5(),
-            t0=ts[0],
-            t1=ts[-1],
-            dt0=dt,
-            y0=y0,
-            saveat=df.SaveAt(ts=ts),
-            max_steps=1_000_000
-        )
-        return results.ys
-    
 class OptimalController(eqx.Module):
     system: AbstractSystem
-    controls: ControlVector | tuple[ControlVector]
+    controls: ControlVector
     y0: Array
     duration: float
     dt_start: float
     dt_save: float
     y_final: Callable[Array, float]
-    y_statewise: Callable[[Array,float], float]
-    u_statewise: Callable[[Array,float], float]
+    y_statewise: Callable[[Array, Array, float], float]
     times: Array
+    n_H_M: int
+    n_C_K: int
 
     def __init__(self,
             system: AbstractSystem,
-            controls: ControlVector | tuple[ControlVector],
+            controls: ControlVector,
             y0: Array,
             duration: float,
             y_final: Callable[Array, float],
-            y_statewise:  Callable[[Array,float], float] = lambda y, t: 0,
-            u_statewise:  Callable[[Array,float], float] = lambda y, t: 0,
+            y_statewise:  Callable[[Array, Array, float], float] = lambda y, u, t: 0,
             dt_start: float = .01,
             dt_save: float = .1,
         ):
         self.system = system
-        if isinstance(self.system, ClosedQuantumSystem):
-            if isinstance(controls, ControlVector):
-                controls = (controls,None)
-        else:
-            if not isinstance(controls, tuple):
-                raise TypeError("For an open quantum system, controls must be a tuple of control vectors.")
         self.controls = controls
-        if len(list(self.controls[0])) != len(self.system.H_M):
-            raise ValueError("Incorrect number of control Hamiltonians or controls.")
-        if isinstance(self.system, OpenQuantumSystem):
-            if len(list(self.controls[1])) != len(self.system.C_K):
+        self.n_H_M = len(self.system.H_M)
+        if isinstance(self.system, ClosedQuantumSystem):
+            self.n_C_K = 0
+            if len(list(self.controls)) != self.n_H_M:
+                raise ValueError("Incorrect number of control Hamiltonians or controls.")
+        else:
+            self.n_C_K = len(self.system.C_K)
+            if len(list(self.controls)) != self.n_C_K + self.n_H_M:
                 raise ValueError("Incorrect number of dissipator controls or controllable dissipators.")
         self.y0 = y0
         self.duration = duration
@@ -124,10 +99,9 @@ class OptimalController(eqx.Module):
         self.dt_start = dt_start
         self.y_final = y_final
         self.y_statewise = y_statewise
-        self.u_statewise = u_statewise
-        self.times = jnp.arange(0.0,self.duration, self.dt_save)
+        self.times = jnp.arange(0.0, self.duration, self.dt_save)
 
-    def run(self, controls: ControlVector | tuple[ControlVector]):        
+    def run(self, controls: ControlVector):        
         return self.system.run_simulation(
             ts=self.times,
             dt=self.dt_start,
@@ -140,10 +114,10 @@ class OptimalController(eqx.Module):
 
     def penalty(self, yt):
         # TODO jaxify
-        L = 0
+        L = 0.0
         for i in range(yt.shape[0]):
-            L += self.y_statewise(yt[i],self.times[i])
-            L += 0 # control penalty TODO
+            ti = self.times[i]
+            L += self.y_statewise(yt[i], self.controls(ti), ti)
         L += self.y_final(yt[-1])
         return L
 
@@ -179,7 +153,6 @@ class OptimalController(eqx.Module):
             dt_save=self.dt_save,
             y_final=self.y_final,
             y_statewise=self.y_statewise,
-            u_statewise=self.u_statewise
         )
 
     def plot(
@@ -194,10 +167,12 @@ class OptimalController(eqx.Module):
         for i, name in enumerate(exp_names):
             ax.plot(self.times,jnp.real(exps[i]),label=name)
         if plot_controls:
-            for i, u_m in enumerate(self.controls[0]):
+            for i in range(self.n_H_M):
+                u_m = self.controls[i]
                 u_m.graph(self.times,ax,fr"$u_{i+1}(t)$")
-            if self.controls[1] is not None:
-                for i, v_i in enumerate(self.controls[1]):
+            if isinstance(self.system, OpenQuantumSystem):
+                for i in range(self.n_C_K):
+                    v_i = self.controls[self.n_H_M+i]
                     v_i.graph(self.times,ax,fr"$v_{i+1}(t)$")
         
 
