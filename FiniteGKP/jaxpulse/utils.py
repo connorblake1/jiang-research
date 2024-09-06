@@ -10,7 +10,7 @@ def heaviside(t: float):
 
 def gaussian(mu, sig, t):
     sig = soft_abs(sig)
-    return 1./(sig*jnp.sqrt(2*jnp.pi))*jnp.exp(-(t-mu)**2/(2*sig))
+    return 1./(sig*jnp.sqrt(2*jnp.pi))*jnp.exp(-((t-mu)/sig)**2/(2))
 
 def commutator(A: Array, B: Array):
     return A@B - B@A
