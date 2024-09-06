@@ -56,8 +56,11 @@ class OpenQuantumSystem(AbstractSystem):
         for U_k in self.U_K:
             field = field + dissipator(U_k,y)
         for v_k, C_k in zip(controls_L, self.C_K):
-            field = field = v_k(t)*dissipator(C_k,y)
+            field = field + v_k(t)*dissipator(C_k,y)
         return field
+    def run_simulation(self, ts: Array, dt: float, y0: Array, u: ControlVector):
+        nonnormalized = super().run_simulation(ts, dt, y0, u)
+        return nonnormalized/(dq.trace(nonnormalized).reshape((nonnormalized.shape[0],1,1)))
     
 class OptimalController(eqx.Module):
     system: AbstractSystem
