@@ -4,7 +4,17 @@ from abc import abstractmethod
 import jax.numpy as jnp
 from .utils import gaussian
 
-__all__ = ["SinusoidalControl","FrequencyControl","GaussianControl","GaussianPulseTrain","GaussianShapeControl","GaussianHeightControl","ConstantControl","ControlVector"]
+__all__ = ["AbstractControl",
+           "SinusoidalControl",
+           "FrequencyControl",
+           "GaussianControl",
+           "GaussianShapeControl",
+           "GaussianHeightControl",
+           "GaussianPulseTrain",
+           "GaussianPulseTrainShaped",
+           "build_train",
+           "ConstantControl",
+           "ControlVector"]
 
 class AbstractControl(eqx.Module):
 
@@ -58,6 +68,8 @@ class GaussianHeightControl(GaussianControl):
     sigma: Array = eqx.field(static=True)
     def __call__(self, t: float) -> float:
         return super().__call__(t)
+    
+
         
 class GaussianPulseTrain(AbstractControl):
     # TODO subclass GaussianControl
@@ -71,6 +83,30 @@ class GaussianPulseTrain(AbstractControl):
         for i in range(self.amp.shape[0]):
             out += self.amp[i]*gaussian(self.mean[i],self.sigma[i],t)
         return out
+    
+class GaussianPulseTrainShaped(GaussianPulseTrain):
+    amp: Array
+    mean: Array = eqx.field(static=True)
+    sigma: Array
+    period: Array = eqx.field(static=True)
+    def __call__(self, t: float) -> float:
+        return super().__call__(t)
+    
+def build_train(gc: GaussianControl, period: float):
+    if isinstance(gc, GaussianShapeControl):
+        return GaussianPulseTrainShaped(
+            amp=gc.amp,
+            mean=gc.mean,
+            sigma=gc.sigma,
+            period=period
+        )
+    else:
+        return GaussianPulseTrain(
+            amp=gc.amp,
+            mean=gc.mean,
+            sigma=gc.sigma,
+            period=period
+        )
     
 class ConstantControl(AbstractControl):
     k: float

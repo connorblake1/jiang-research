@@ -96,6 +96,10 @@ class OptimalController(eqx.Module):
             self.n_C_K = len(self.system.C_K)
             if len(list(self.controls)) != self.n_C_K + self.n_H_M:
                 raise ValueError("Incorrect number of dissipator controls or controllable dissipators.")
+        if y0.shape[0] == y0.shape[1] and isinstance(self.system, ClosedQuantumSystem):
+            raise TypeError("Attempted to assign density operator in place of wave function.")
+        elif y0.shape[1] == 1 and isinstance(self.system, OpenQuantumSystem):
+            raise TypeError("Attempted to assign wave function in place of density operator.")
         self.y0 = y0
         self.duration = duration
         self.dt_save = dt_save
@@ -104,16 +108,19 @@ class OptimalController(eqx.Module):
         self.y_statewise = y_statewise
         self.times = jnp.arange(0.0, self.duration, self.dt_save)
 
-    def run(self, controls: ControlVector):        
+    def _run(self, controls: ControlVector):        
         return self.system.run_simulation(
             ts=self.times,
             dt=self.dt_start,
             y0=self.y0,
             u=controls
         )
+    
+    def run(self):
+        return self._run(self.controls)
 
     def loss(self, controls):
-        return jnp.real(self.penalty(self.run(controls)))
+        return jnp.real(self.penalty(self._run(controls)))
 
     def penalty(self, yt):
         # TODO jaxify
@@ -165,7 +172,7 @@ class OptimalController(eqx.Module):
             exp_names: list[str] = [],
             plot_controls: bool = True
         ):
-        yt = self.run(self.controls)
+        yt = self.run()
         exps = dq.expect(exp_ops, yt)
         for i, name in enumerate(exp_names):
             ax.plot(self.times,jnp.real(exps[i]),label=name)
