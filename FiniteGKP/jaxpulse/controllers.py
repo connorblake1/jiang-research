@@ -2,7 +2,7 @@ import equinox as eqx
 from jaxtyping import Array
 from abc import abstractmethod
 import jax.numpy as jnp
-from .utils import gaussian
+from .utils import gaussian, soft_abs
 
 __all__ = ["AbstractControl",
            "SinusoidalControl",
@@ -10,6 +10,7 @@ __all__ = ["AbstractControl",
            "GaussianControl",
            "GaussianShapedControl",
            "GaussianHeightControl",
+           "PositiveGaussianControl",
            "GaussianPulseTrain",
            "GaussianShapedPulseTrain",
            "build_train",
@@ -102,7 +103,9 @@ class GaussianHeightControl(GaussianControl):
     def __call__(self, t: float) -> float:
         return super().__call__(t)
     
-
+class PositiveGaussianControl(GaussianControl):
+    def __call__(self, t: float) -> float:
+        return soft_abs(super().__call__(t))
         
 class GaussianPulseTrain(RealControl):
     # TODO subclass GaussianControl
