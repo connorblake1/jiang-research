@@ -8,13 +8,14 @@ __all__ = ["AbstractControl",
            "SinusoidalControl",
            "FrequencyControl",
            "GaussianControl",
-           "GaussianShapeControl",
+           "GaussianShapedControl",
            "GaussianHeightControl",
            "GaussianPulseTrain",
-           "GaussianPulseTrainShaped",
+           "GaussianShapedPulseTrain",
            "build_train",
            "ConstantControl",
-           "ControlVector"]
+           "ControlVector",
+           "PeriodicControlVector"]
 
 class AbstractControl(eqx.Module):
 
@@ -26,8 +27,21 @@ class AbstractControl(eqx.Module):
         values = jnp.array([self.__call__(time) for time in times])
         axhandle.plot(times, values,label=label)
 
+class RealControl(AbstractControl):
+    @abstractmethod
+    def __call__(self, t: float) -> float:
+        pass
 
-class SinusoidalControl(AbstractControl):
+class CompoundControl(AbstractControl):
+    c1: RealControl
+    c2: RealControl
+    
+    def __call__(self, t: float):
+        return self.c1(t) + self.c2(t)
+
+
+
+class SinusoidalControl(RealControl):
     a: Array
     omega: Array
     phi: Array
@@ -37,28 +51,47 @@ class SinusoidalControl(AbstractControl):
             out = out + self.a[i]*jnp.sin(self.omega[i]*t + self.phi[i])
         return out
 
-class FrequencyControl(AbstractControl):
+class FrequencyControl(SinusoidalControl):
+    a: Array = eqx.field(static=True)
     omega: Array
+    phi: Array = eqx.field(static=True)
     def __call__(self, t:float) ->float:
-        out = 0
-        for i in range(len(self.omega)):
-            out = out + jnp.sin(self.omega[i]*t)
-        return out
+        return super().__call__(t)
 
-class GaussianControl(AbstractControl):
+class GaussianControl(RealControl):
     amp: Array
     mean: Array
     sigma: Array
+    def std(amp: float, mean: float, sigma: float):
+        return GaussianControl(
+            amp=jnp.array([amp]),
+            mean=jnp.array([mean]),
+            sigma=jnp.array([sigma])
+        )
+
     def __call__(self, t: float) -> float:
         out = 0
         for i in range(self.amp.shape[0]):
             out += self.amp[i]*gaussian(self.mean[i],self.sigma[i],t)
         return out
+    def __add__(self, other):
+        return GaussianControl(
+            amp=jnp.hstack((self.amp, other.amp)),
+            mean=jnp.hstack((self.mean, other.mean)),
+            sigma=jnp.hstack((self.sigma, other.sigma))
+        )
+    def __mul__(self, other: float):
+        return GaussianControl(
+            amp=other*self.amp,
+            mean=self.mean,
+            sigma=self.sigma
+        )
+
     
-class GaussianShapeControl(GaussianControl):
+class GaussianShapedControl(GaussianControl):
     amp: Array
     mean: Array = eqx.field(static=True)
-    sigma: Array
+    sigma: Array = eqx.field(static=True)
     def __call__(self, t: float) -> float:
        return super().__call__(t)
     
@@ -71,30 +104,55 @@ class GaussianHeightControl(GaussianControl):
     
 
         
-class GaussianPulseTrain(AbstractControl):
+class GaussianPulseTrain(RealControl):
     # TODO subclass GaussianControl
     amp: Array
     mean: Array
     sigma: Array
     period: Array
+
+    def std(amp: float, mean: float, sigma: float, period: float):
+        return GaussianPulseTrain(
+            amp=jnp.array([amp]),
+            mean=jnp.array([mean]),
+            sigma=jnp.array([sigma]),
+            period=jnp.array([period])
+        )
+    
+    def __add__(self, other):
+        return GaussianPulseTrain(
+            amp=jnp.hstack((self.amp, other.amp)),
+            mean=jnp.hstack((self.mean, other.mean)),
+            sigma=jnp.hstack((self.sigma, other.sigma)),
+            period=jnp.hstack((self.period, other.period))
+        )
+    
+    def __mul__(self, other: float):
+        return GaussianPulseTrain(
+            amp=other*self.amp,
+            mean=self.mean,
+            sigma=self.sigma,
+            period=self.period
+        )
+
     def __call__(self, t: float) -> float:
-        t = jnp.remainder(t, self.period)
         out = 0
         for i in range(self.amp.shape[0]):
+            t = jnp.remainder(t, self.period[i])
             out += self.amp[i]*gaussian(self.mean[i],self.sigma[i],t)
         return out
     
-class GaussianPulseTrainShaped(GaussianPulseTrain):
+class GaussianShapedPulseTrain(GaussianPulseTrain):
     amp: Array
     mean: Array = eqx.field(static=True)
-    sigma: Array
+    sigma: Array = eqx.field(static=True)
     period: Array = eqx.field(static=True)
     def __call__(self, t: float) -> float:
         return super().__call__(t)
     
 def build_train(gc: GaussianControl, period: float):
-    if isinstance(gc, GaussianShapeControl):
-        return GaussianPulseTrainShaped(
+    if isinstance(gc, GaussianShapedControl):
+        return GaussianShapedPulseTrain(
             amp=gc.amp,
             mean=gc.mean,
             sigma=gc.sigma,
@@ -108,7 +166,7 @@ def build_train(gc: GaussianControl, period: float):
             period=period
         )
     
-class ConstantControl(AbstractControl):
+class ConstantControl(RealControl):
     k: float
     def __init__(self,k):
         self.k = k
@@ -128,3 +186,13 @@ class ControlVector(eqx.Module):
     def __getitem__(self, index: int):
         return self.us[index]
 
+class PeriodicControlVector(ControlVector):
+    us: list[AbstractControl]
+    period: Array
+    def __init__(self, control: ControlVector, period: float):
+        self.us = control.us
+        self.period = jnp.array([period])
+
+    def __call__(self, t: float) -> Array:
+        return super().__call__(jnp.remainder(t,self.period))
+    
