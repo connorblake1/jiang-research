@@ -85,7 +85,7 @@ class QuantumBilinearController(eqx.Module):
     
     # @jax.jit
     def Q_k(self, xk: Array, pk: Array, Pk: Array):
-        return self.Q_k_tilde(pk) - jnp.einsum("im,mn,nj->ij",Pk,self.S_k_tilde(xk),Pk)
+        return self.Q_k_tilde(pk) + jnp.einsum("im,mn,nj->ij",Pk,self.S_k_tilde(xk),Pk)
 
     # @jax.jit
     def u_k(self, xk: Array, xk1: Array, Pk1: Array):
