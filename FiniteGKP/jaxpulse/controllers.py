@@ -13,6 +13,7 @@ __all__ = ["AbstractControl",
            "PositiveGaussianControl",
            "GaussianPulseTrain",
            "GaussianShapedPulseTrain",
+           "PositiveGaussianPulseTrain",
            "build_train",
            "ConstantControl",
            "ControlVector",
@@ -106,7 +107,7 @@ class GaussianHeightControl(GaussianControl):
 class PositiveGaussianControl(GaussianControl):
     def __call__(self, t: float) -> float:
         return soft_abs(super().__call__(t))
-        
+            
 class GaussianPulseTrain(RealControl):
     # TODO subclass GaussianControl
     amp: Array
@@ -152,6 +153,10 @@ class GaussianShapedPulseTrain(GaussianPulseTrain):
     period: Array = eqx.field(static=True)
     def __call__(self, t: float) -> float:
         return super().__call__(t)
+    
+class PositiveGaussianPulseTrain(GaussianPulseTrain):
+    def __call__(self, t: float) -> float:
+        return soft_abs(super().__call__(t))
     
 def build_train(gc: GaussianControl, period: float):
     if isinstance(gc, GaussianShapedControl):
