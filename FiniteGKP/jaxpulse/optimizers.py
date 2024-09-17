@@ -153,6 +153,8 @@ class OptimalController(eqx.Module):
                 if verbosity > 1:
                     eqx.tree_pprint(ctrls, short_arrays=False)
                 print(f"Step: {step} Loss: {loss_val}")
+            if loss_val < 0:
+                break
         
         return OptimalController(
             system=self.system,
