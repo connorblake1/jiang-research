@@ -5,7 +5,7 @@ import numpy as np
 import strawberryfields as sf
 
 GKP_DELTA = .2
-GKP_N = 25
+GKP_N = 50
 root2 = jnp.sqrt(2.)
 
 # generate states
