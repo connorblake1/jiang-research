@@ -1,0 +1,28 @@
+6/19
+  setting up repo and jax GPU
+6/22
+  finishing up small-big-small and making it all converge, send stuff to Gideon/Jerry
+  Bertsekas did chapter 1 of dynamic programming
+6/23
+  learning Jax autodiff and working on Ch1 of Class Mech Structure Interpretation
+6/24
+  Questions for meeting:
+    1. what do second quantization states actually look like? ie in x-basis
+    2. how to implement more stable x-basis stuff
+    3a. what is the full set of physically realizable operations ie is it just controlled displacement?
+    3b. are there specific kinds of solid state hardware this is intended to run on? ie types of transmons etc?
+    4. are the graphs I made physically meaningful in the sense that continuous expectation values
+       would project onto a new basis and create Zeno type states - stochastic noise obviously important here
+       and how should I simulate it - does this have bearing on the optimal gate sets?
+    5. is the goal to just find better overall gates? to prove some kind of general Law-Eberly type control? It
+       doesn't seem like you can just "Trotterize better"
+7/16
+  Working on trajectory optimization Hamiltonian based optimal control but it got deleted. Based on exampe from Lecture 7 end in MIT OCW 16.323
+8/6
+  Grushin quantum optimal control example - even with autodiff, analytical solutions trump numerical optimization so be clever.
+8/20
+	The grind begins.
+8/21
+  mainly working on writing conclusion for CMBE
+  reading about HPC stuff
+  

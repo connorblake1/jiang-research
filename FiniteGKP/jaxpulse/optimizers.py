@@ -142,7 +142,7 @@ class OptimalController(eqx.Module):
         
         @eqx.filter_jit
         def make_step(ctrls, opt_state):
-            loss_val, grads = eqx.filter_value_and_grad(self.loss)(ctrls)
+            loss_val, grads = eqx.filter_value_and_grad(self.loss, holomorphic=True)(ctrls)
             updates, opt_state = optim.update(grads, opt_state)
             ctrls = eqx.apply_updates(ctrls, updates)
             return ctrls, opt_state, loss_val
